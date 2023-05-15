@@ -1,0 +1,1 @@
+mp4fragment --fragment-duration 5000 tears_of_steel_1080p_trim.mp4 output_frag.mp4
