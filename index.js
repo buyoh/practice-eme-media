@@ -26,7 +26,7 @@ function toBase64Url(u8arr) {
 // ----------------------------------------------------------------------------
 
 // fragmented mp4 を MSE で読み込む。
-function setMediaSource(video, assetURL, mimeCodec) {
+function setMediaSourceConcatenated(video, assetURL, mimeCodec) {
   if (!MediaSource.isTypeSupported(mimeCodec)) {
     console.error('Unsupported MIME type or codec: ', mimeCodec);
     return;
@@ -45,6 +45,52 @@ function setMediaSource(video, assetURL, mimeCodec) {
       console.log(mediaSource.readyState); // ended
     });
     sourceBuffer.appendBuffer(arrayBuffer);
+  });
+}
+
+/**
+ * 
+ * @param {*} video 
+ * @param {[{urls: Array<String>, mimeCodec: String}]} assets 
+ * @returns 
+ */
+function setMediaSource(video, assets) {
+  for (const asset of assets) {
+    if (!MediaSource.isTypeSupported(asset.mimeCodec)) {
+      console.error('Unsupported MIME type or codec: ', asset.mimeCodec);
+      return;
+    }
+  }
+  const mediaSource = new MediaSource();
+  video.src = URL.createObjectURL(mediaSource);
+  mediaSource.addEventListener('sourceopen', () => {
+    for (const asset of assets) {
+      const sourceBuffer = mediaSource.addSourceBuffer(asset.mimeCodec);
+      let arrayBuffersQueue = null;
+      (async () => {
+        // Fetch all media files.
+        const ress = await Promise.all(asset.urls.map(url => fetch(url)));
+        for (const res of ress) {
+          res.arrayBuffer().then(ab => {
+            // sourceBufferには1つずつarrayBufferをappendしていく。
+            // appendの完了はupdateendで受け取る。
+            if (arrayBuffersQueue === null) {
+              sourceBuffer.appendBuffer(ab);
+              arrayBuffersQueue = [];
+            } else {
+              arrayBuffersQueue.push(ab);
+            }
+          })
+        }
+      })();
+      sourceBuffer.addEventListener('updateend', () => {
+        video.play();
+        if (arrayBuffersQueue !== null && arrayBuffersQueue.length >= 1) {
+          const ab = arrayBuffersQueue.shift();
+          sourceBuffer.appendBuffer(ab);
+        }
+      });
+    }
   });
 }
 

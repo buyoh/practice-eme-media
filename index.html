@@ -19,7 +19,28 @@
       const encryption_kid = hexToUint8Array('a53fcebc83532682766c7d0e012fe92f');
 
       setMediaKeysClearKey(video, videoCodec, audioCodec, encryption_key);
-      setMediaSource(video, assetURL, mime);
+      setMediaSourceConcatenated(video, assetURL, mime);
+    }
+
+    function startSimple() {
+      const video = document.querySelector('video');
+      // https://dash.akamaized.net/akamai/bbb_30fps/bbb_30fps.mpd
+      const assets = [
+        {
+          urls:
+            Array.from({ length: 11 }, (_, idx) =>
+              `https://dash.akamaized.net/akamai/bbb_30fps/bbb_30fps_640x360_1000k/bbb_30fps_640x360_1000k_${idx}.m4v`),
+          mimeCodec: 'video/mp4; codecs="avc1.64001e"'
+        },
+        {
+          urls:
+            Array.from({ length: 11 }, (_, idx) =>
+              `https://dash.akamaized.net/akamai/bbb_30fps/bbb_a64k/bbb_a64k_${idx}.m4a`),
+          mimeCodec: 'audio/mp4; codecs="mp4a.40.5"'
+        }
+      ];
+
+      setMediaSource(video, assets);
     }
 
   </script>
@@ -30,6 +51,7 @@
   <div>
     <video controls></video>
     <button onclick="startClearKey()">START org.w3.clearkey</button>
+    <button onclick="startSimple()">START simple</button>
   </div>
 
   <p>(CC) Blender Foundation | mango.blender.org</p>
