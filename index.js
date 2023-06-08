@@ -184,3 +184,87 @@ function setMediaKeysClearKey(video, videoCodec, audioCodec, encryption_key) {
     }
   });
 }
+
+// ----------------------------------------------------------------------------
+// EME (com.widevine.alpha)
+// ----------------------------------------------------------------------------
+
+async function createMediaKeysWidevine(videoContentType, audioContentType) {
+  const config = [
+    {
+      initDataTypes: ['cenc'],
+      distinctiveIdentifier: "optional",
+      persistentState: "required",
+      videoCapabilities: [
+        {
+          contentType: videoContentType,
+        },
+      ],
+      audioCapabilities: [
+        {
+          contentType: audioContentType,
+        },
+      ],
+    },
+  ];
+
+  const keySystemAccess = await navigator.requestMediaKeySystemAccess(
+    'com.widevine.alpha',
+    config
+  );
+  const mediaKeys = await keySystemAccess.createMediaKeys();
+  return mediaKeys;
+}
+
+async function handleLicenseRequestWidevine(session, message, licenseServerInfo) {
+  const headers = new Headers();
+  for (const key in licenseServerInfo.httpRequestHeaders) {
+    headers.append(key, licenseServerInfo.httpRequestHeaders[key]);
+  }
+  const response = await fetch(licenseServerInfo.serverURL, { headers, method: 'POST' });
+  const buffer = await response.arrayBuffer();
+
+  session.update(buffer).catch((e) => console.error(e));
+}
+
+function setMediaKeysWidevine(video, videoCodec, audioCodec, licenseServerInfo) {
+  (async () => {
+    try {
+      // MediaKey を作成して video にセットする
+      const mediaKeys = await createMediaKeysWidevine(
+        `video/mp4; codecs="${videoCodec}"`,
+        `audio/mp4; codecs="${audioCodec}"`
+      );
+      await video.setMediaKeys(mediaKeys);
+    } catch (error) {
+      console.error('EME setup failed:', error);
+    }
+  })();
+
+  // 暗号化されたメディアを検知したら呼び出される
+  video.addEventListener('encrypted', async (event) => {
+    try {
+      const { initDataType, initData } = event;
+      console.log(
+        'onencrypted:',
+        'initDataType=',
+        initDataType,
+        'initData=',
+        initData
+      );
+      const mediaKeys = video.mediaKeys;
+
+      // セッションを作成
+      const session = mediaKeys.createSession();
+      session.addEventListener('message', (event) => {
+        // License Request
+        const session = event.target;
+        const message = event.message;
+        handleLicenseRequestWidevine(session, message, licenseServerInfo);
+      });
+      await session.generateRequest(initDataType, initData);
+    } catch (error) {
+      console.error('EME setup failed:', error);
+    }
+  });
+}

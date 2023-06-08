@@ -43,6 +43,53 @@
       setMediaSource(video, assets);
     }
 
+    function startWidevine() {
+      const video = document.querySelector('video');
+
+      const licenseServerInfo = {
+          "serverURL": "https://drm-widevine-licensing.axtest.net/AcquireLicense",
+          "httpRequestHeaders": {
+              "X-AxDRM-Message": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ2ZXJzaW9uIjoxLCJjb21fa2V5X2lkIjoiYjMzNjRlYjUtNTFmNi00YWUzLThjOTgtMzNjZWQ1ZTMxYzc4IiwibWVzc2FnZSI6eyJ0eXBlIjoiZW50aXRsZW1lbnRfbWVzc2FnZSIsImZpcnN0X3BsYXlfZXhwaXJhdGlvbiI6NjAsInBsYXlyZWFkeSI6eyJyZWFsX3RpbWVfZXhwaXJhdGlvbiI6dHJ1ZX0sImtleXMiOlt7ImlkIjoiOWViNDA1MGQtZTQ0Yi00ODAyLTkzMmUtMjdkNzUwODNlMjY2IiwiZW5jcnlwdGVkX2tleSI6ImxLM09qSExZVzI0Y3Iya3RSNzRmbnc9PSJ9XX19.FAbIiPxX8BHi9RwfzD7Yn-wugU19ghrkBFKsaCPrZmU"
+          },
+      };
+
+      // https://reference.dashif.org/dash.js/latest/samples/drm/widevine.html
+      // com.widevine.alpha
+      // "com.widevine.alpha": {
+      //           "serverURL": "https://drm-widevine-licensing.axtest.net/AcquireLicense",
+      //           "httpRequestHeaders": {
+      //               "X-AxDRM-Message": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ2ZXJzaW9uIjoxLCJjb21fa2V5X2lkIjoiYjMzNjRlYjUtNTFmNi00YWUzLThjOTgtMzNjZWQ1ZTMxYzc4IiwibWVzc2FnZSI6eyJ0eXBlIjoiZW50aXRsZW1lbnRfbWVzc2FnZSIsImZpcnN0X3BsYXlfZXhwaXJhdGlvbiI6NjAsInBsYXlyZWFkeSI6eyJyZWFsX3RpbWVfZXhwaXJhdGlvbiI6dHJ1ZX0sImtleXMiOlt7ImlkIjoiOWViNDA1MGQtZTQ0Yi00ODAyLTkzMmUtMjdkNzUwODNlMjY2IiwiZW5jcnlwdGVkX2tleSI6ImxLM09qSExZVzI0Y3Iya3RSNzRmbnc9PSJ9XX19.FAbIiPxX8BHi9RwfzD7Yn-wugU19ghrkBFKsaCPrZmU"
+      //           },
+      //           priority: 0
+      //       }
+      // https://media.axprod.net/TestVectors/v7-MultiDRM-SingleKey/Manifest_1080p.mpd
+
+      const assets = [
+        {
+          urls:
+            [
+              'https://media.axprod.net/TestVectors/v7-MultiDRM-SingleKey/2/init.mp4'
+            ].concat(
+            Array.from({ length: 8 }, (_, idx) =>
+              `https://media.axprod.net/TestVectors/v7-MultiDRM-SingleKey/2/000${idx+1}.m4s`)),
+          mimeCodec: 'video/mp4; codecs="avc1.64001f"'
+        },
+        {
+          urls:
+            [
+              'https://media.axprod.net/TestVectors/v7-MultiDRM-SingleKey/15/init.mp4'
+            ].concat(
+            Array.from({ length: 8 }, (_, idx) =>
+              `https://media.axprod.net/TestVectors/v7-MultiDRM-SingleKey/15/000${idx+1}.m4s`)),
+          mimeCodec: 'audio/mp4; codecs="mp4a.40.29"'
+        }
+      ];
+      const videoCodec = 'avc1.64001f';
+      const audioCodec = 'mp4a.40.29';
+      setMediaKeysWidevine(video, videoCodec, audioCodec, licenseServerInfo);
+      setMediaSource(video, assets);
+    }
+
   </script>
 </head>
 
@@ -52,6 +99,7 @@
     <video controls></video>
     <button onclick="startClearKey()">START org.w3.clearkey</button>
     <button onclick="startSimple()">START simple</button>
+    <button onclick="startWidevine()">START widevine</button>
   </div>
 
   <p>(CC) Blender Foundation | mango.blender.org</p>
