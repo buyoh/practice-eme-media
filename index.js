@@ -67,27 +67,45 @@ function setMediaSource(video, assets) {
     for (const asset of assets) {
       const sourceBuffer = mediaSource.addSourceBuffer(asset.mimeCodec);
       let arrayBuffersQueue = null;
-      (async () => {
-        // Fetch all media files.
-        const ress = await Promise.all(asset.urls.map(url => fetch(url)));
-        for (const res of ress) {
-          res.arrayBuffer().then(ab => {
-            // sourceBufferには1つずつarrayBufferをappendしていく。
-            // appendの完了はupdateendで受け取る。
-            if (arrayBuffersQueue === null) {
-              sourceBuffer.appendBuffer(ab);
-              arrayBuffersQueue = [];
-            } else {
-              arrayBuffersQueue.push(ab);
-            }
-          })
+      let fetchingBufferIndex = 0;
+      let unorderedArrayBuffersQueue = {};
+      const pushArrayBuffers = (ab) => {
+        // sourceBufferには1つずつarrayBufferをappendしていく。
+        // appendの完了はupdateendで受け取る。
+        if (arrayBuffersQueue === null) {
+          sourceBuffer.appendBuffer(ab);
+          arrayBuffersQueue = [];
+        } else {
+          arrayBuffersQueue.push(ab);
         }
-      })();
+      };
+      const popFromUnorderedArrayBuffersQueue = () => {
+        while (unorderedArrayBuffersQueue[fetchingBufferIndex]) {
+          const ab = unorderedArrayBuffersQueue[fetchingBufferIndex];
+          unorderedArrayBuffersQueue[fetchingBufferIndex] = undefined;
+          delete unorderedArrayBuffersQueue[fetchingBufferIndex];
+          console.log('pushArrayBuffers' + fetchingBufferIndex);
+          pushArrayBuffers(ab);
+          fetchingBufferIndex += 1;
+        }
+      };
+      asset.urls.forEach(async (url, index) => {
+        const res = await fetch(url);
+        const ab = await res.arrayBuffer();
+        console.log('fetch' + index);
+        unorderedArrayBuffersQueue[index] = ab;
+        popFromUnorderedArrayBuffersQueue();
+      });
       sourceBuffer.addEventListener('updateend', () => {
+        console.log('updateend');
         video.play();
         if (arrayBuffersQueue !== null && arrayBuffersQueue.length >= 1) {
           const ab = arrayBuffersQueue.shift();
+          console.log('next..');
           sourceBuffer.appendBuffer(ab);
+        } else {
+          arrayBuffersQueue = null;
+        console.log('wait');
         }
       });
     }
@@ -102,6 +120,9 @@ async function createMediaKeysClearKey(videoContentType, audioContentType) {
   const config = [
     {
       initDataTypes: ['cenc'],
+      distinctiveIdentifier: "optional",
+      persistentState: "optional",
+      sessionTypes: ["temporary"],
       videoCapabilities: [
         {
           contentType: videoContentType,
@@ -133,7 +154,7 @@ async function handleLicenseRequestClearKey(session, message, encryption_key) {
         alg: 'A128KW',
         use: 'enc',
         kid: request.kids[0], // same as encryption_kid
-        k: toBase64Url(encryption_key),
+        k: encryption_key,
       },
     ],
   };
@@ -159,6 +180,7 @@ function setMediaKeysClearKey(video, videoCodec, audioCodec, encryption_key) {
 
   // 暗号化されたメディアを検知したら呼び出される
   video.addEventListener('encrypted', async (event) => {
+    console.log('encrypted');
     try {
       const { initDataType, initData } = event;
       // console.log(
@@ -194,15 +216,18 @@ async function createMediaKeysWidevine(videoContentType, audioContentType) {
     {
       initDataTypes: ['cenc'],
       distinctiveIdentifier: "optional",
-      persistentState: "required",
+      persistentState: "optional",
+      sessionTypes: ["temporary"],
       videoCapabilities: [
         {
           contentType: videoContentType,
+          robustness: 'SW_SECURE_CRYPTO',
         },
       ],
       audioCapabilities: [
         {
           contentType: audioContentType,
+          robustness: 'SW_SECURE_CRYPTO',
         },
       ],
     },
@@ -212,6 +237,7 @@ async function createMediaKeysWidevine(videoContentType, audioContentType) {
     'com.widevine.alpha',
     config
   );
+  // keySystemAccess.selectedSystemString = 'com.widevine.alpha';  // ??
   const mediaKeys = await keySystemAccess.createMediaKeys();
   return mediaKeys;
 }

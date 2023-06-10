@@ -15,11 +15,45 @@
       const videoCodec = 'avc1.42C01E';
       const audioCodec = 'mp4a.40.2';
       const mime = `video/mp4; codecs="${videoCodec}, ${audioCodec}"`;
-      const encryption_key = hexToUint8Array('9c61173d2db8939009be4bd689533ade');
-      const encryption_kid = hexToUint8Array('a53fcebc83532682766c7d0e012fe92f');
+      const encryption_kid = toBase64Url(hexToUint8Array('a53fcebc83532682766c7d0e012fe92f'));
+      const encryption_key = toBase64Url(hexToUint8Array('9c61173d2db8939009be4bd689533ade'));
 
-      setMediaKeysClearKey(video, videoCodec, audioCodec, encryption_key);
+      // setMediaKeysClearKey(video, videoCodec, audioCodec, encryption_key);
       setMediaSourceConcatenated(video, assetURL, mime);
+    }
+
+    function startClearKey2() {
+      const video = document.querySelector('video');
+
+      const encryption_kid = hexToUint8Array('nrQFDeRLSAKTLifXUIPiZg');
+      const encryption_key = hexToUint8Array('FmY0xnWCPCNaSpRG-tUuTQ');
+
+      const assets = [
+        {
+          urls:
+            [
+              'https://media.axprod.net/TestVectors/v7-MultiDRM-SingleKey/2/init.mp4'
+            ]
+            .concat(
+            Array.from({ length: 9 }, (_, idx) =>
+              `https://media.axprod.net/TestVectors/v7-MultiDRM-SingleKey/2/${('00000'+(idx+1)).slice(-4)}.m4s`)),
+          mimeCodec: 'video/mp4; codecs="avc1.64001f"'
+        },
+        {
+          urls:
+            [
+              'https://media.axprod.net/TestVectors/v7-MultiDRM-SingleKey/15/init.mp4'
+            ]
+            .concat(
+            Array.from({ length: 9 }, (_, idx) =>
+              `https://media.axprod.net/TestVectors/v7-MultiDRM-SingleKey/15/${('00000'+(idx+1)).slice(-4)}.m4s`)),
+          mimeCodec: 'audio/mp4; codecs="mp4a.40.29"'
+        },
+      ];
+      const videoCodec = 'avc1.64001f';
+      const audioCodec = 'mp4a.40.29';
+      setMediaKeysClearKey(video, videoCodec, audioCodec, encryption_key);
+      setMediaSource(video, assets);
     }
 
     function startSimple() {
@@ -69,8 +103,9 @@
           urls:
             [
               'https://media.axprod.net/TestVectors/v7-MultiDRM-SingleKey/2/init.mp4'
-            ].concat(
-            Array.from({ length: 8 }, (_, idx) =>
+            ]
+            .concat(
+            Array.from({ length: 5 }, (_, idx) =>
               `https://media.axprod.net/TestVectors/v7-MultiDRM-SingleKey/2/000${idx+1}.m4s`)),
           mimeCodec: 'video/mp4; codecs="avc1.64001f"'
         },
@@ -78,11 +113,12 @@
           urls:
             [
               'https://media.axprod.net/TestVectors/v7-MultiDRM-SingleKey/15/init.mp4'
-            ].concat(
-            Array.from({ length: 8 }, (_, idx) =>
+            ]
+            .concat(
+            Array.from({ length: 5 }, (_, idx) =>
               `https://media.axprod.net/TestVectors/v7-MultiDRM-SingleKey/15/000${idx+1}.m4s`)),
           mimeCodec: 'audio/mp4; codecs="mp4a.40.29"'
-        }
+        },
       ];
       const videoCodec = 'avc1.64001f';
       const audioCodec = 'mp4a.40.29';
@@ -98,6 +134,7 @@
   <div>
     <video controls></video>
     <button onclick="startClearKey()">START org.w3.clearkey</button>
+    <button onclick="startClearKey2()">START org.w3.clearkey 2</button>
     <button onclick="startSimple()">START simple</button>
     <button onclick="startWidevine()">START widevine</button>
   </div>
