@@ -21,6 +21,16 @@ function toBase64Url(u8arr) {
     .replace(/=*$/, '');
 }
 
+function base64ToArrayBuffer(base64) {
+  const binaryString = atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (var i = 0; i < len; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
+
 // ----------------------------------------------------------------------------
 // MSE
 // ----------------------------------------------------------------------------
@@ -120,9 +130,6 @@ async function createMediaKeysClearKey(videoContentType, audioContentType) {
   const config = [
     {
       initDataTypes: ['cenc'],
-      distinctiveIdentifier: "optional",
-      persistentState: "optional",
-      sessionTypes: ["temporary"],
       videoCapabilities: [
         {
           contentType: videoContentType,
@@ -154,7 +161,7 @@ async function handleLicenseRequestClearKey(session, message, encryption_key) {
         alg: 'A128KW',
         use: 'enc',
         kid: request.kids[0], // same as encryption_kid
-        k: encryption_key,
+        k: toBase64Url(encryption_key),
       },
     ],
   };
@@ -180,7 +187,6 @@ function setMediaKeysClearKey(video, videoCodec, audioCodec, encryption_key) {
 
   // 暗号化されたメディアを検知したら呼び出される
   video.addEventListener('encrypted', async (event) => {
-    console.log('encrypted');
     try {
       const { initDataType, initData } = event;
       // console.log(
@@ -206,7 +212,6 @@ function setMediaKeysClearKey(video, videoCodec, audioCodec, encryption_key) {
     }
   });
 }
-
 // ----------------------------------------------------------------------------
 // EME (com.widevine.alpha)
 // ----------------------------------------------------------------------------
@@ -214,20 +219,21 @@ function setMediaKeysClearKey(video, videoCodec, audioCodec, encryption_key) {
 async function createMediaKeysWidevine(videoContentType, audioContentType) {
   const config = [
     {
+      label: 'widevine',
       initDataTypes: ['cenc'],
-      distinctiveIdentifier: "optional",
+      "distinctiveIdentifier": "optional",
       persistentState: "optional",
       sessionTypes: ["temporary"],
       videoCapabilities: [
         {
           contentType: videoContentType,
-          robustness: 'SW_SECURE_CRYPTO',
+          robustness: '', // SW_SECURE_CRYPTO
         },
       ],
       audioCapabilities: [
         {
           contentType: audioContentType,
-          robustness: 'SW_SECURE_CRYPTO',
+          robustness: '',  // SW_SECURE_CRYPTO
         },
       ],
     },
@@ -247,7 +253,11 @@ async function handleLicenseRequestWidevine(session, message, licenseServerInfo)
   for (const key in licenseServerInfo.httpRequestHeaders) {
     headers.append(key, licenseServerInfo.httpRequestHeaders[key]);
   }
-  const response = await fetch(licenseServerInfo.serverURL, { headers, method: 'POST' });
+  const response = await fetch(licenseServerInfo.serverURL, {
+    headers,
+    method: 'POST',
+    body: message,
+  });
   const buffer = await response.arrayBuffer();
 
   session.update(buffer).catch((e) => console.error(e));
@@ -258,10 +268,28 @@ function setMediaKeysWidevine(video, videoCodec, audioCodec, licenseServerInfo) 
     try {
       // MediaKey を作成して video にセットする
       const mediaKeys = await createMediaKeysWidevine(
-        `video/mp4; codecs="${videoCodec}"`,
-        `audio/mp4; codecs="${audioCodec}"`
+        `video/mp4;codecs="${videoCodec}"`,
+        `audio/mp4;codecs="${audioCodec}"`
       );
       await video.setMediaKeys(mediaKeys);
+      console.log('setMediaKeys ok');
+
+      const session = mediaKeys.createSession();
+      session.addEventListener('message', (event) => {
+        console.log('message', event, 'data', event.data);
+        // License Request
+        const session = event.target;
+        const message = event.message;
+        handleLicenseRequestWidevine(session, message, licenseServerInfo);
+      });
+      session.addEventListener('keystatuseschange', (event) => {
+        console.log('keystatuschange', event);
+      });
+
+      await session.generateRequest(
+        'cenc',
+        base64ToArrayBuffer(licenseServerInfo.cenc_pssh)
+      );
     } catch (error) {
       console.error('EME setup failed:', error);
     }
@@ -269,28 +297,8 @@ function setMediaKeysWidevine(video, videoCodec, audioCodec, licenseServerInfo) 
 
   // 暗号化されたメディアを検知したら呼び出される
   video.addEventListener('encrypted', async (event) => {
-    try {
-      const { initDataType, initData } = event;
-      console.log(
-        'onencrypted:',
-        'initDataType=',
-        initDataType,
-        'initData=',
-        initData
-      );
-      const mediaKeys = video.mediaKeys;
-
-      // セッションを作成
-      const session = mediaKeys.createSession();
-      session.addEventListener('message', (event) => {
-        // License Request
-        const session = event.target;
-        const message = event.message;
-        handleLicenseRequestWidevine(session, message, licenseServerInfo);
-      });
-      await session.generateRequest(initDataType, initData);
-    } catch (error) {
-      console.error('EME setup failed:', error);
-    }
+    console.log('encrypted');
+    // onencrypted しないことがある
+    // コンテナの contentenckeyid が関係するか？ 
   });
 }
