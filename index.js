@@ -76,6 +76,8 @@ function setMediaSource(video, assets) {
   mediaSource.addEventListener('sourceopen', () => {
     for (const asset of assets) {
       const sourceBuffer = mediaSource.addSourceBuffer(asset.mimeCodec);
+      // null: sourceBuffer can append buffers immediately
+      // Array: sourceBuffer is working
       let arrayBuffersQueue = null;
       let fetchingBufferIndex = 0;
       let unorderedArrayBuffersQueue = {};
@@ -83,39 +85,41 @@ function setMediaSource(video, assets) {
         // sourceBufferには1つずつarrayBufferをappendしていく。
         // appendの完了はupdateendで受け取る。
         if (arrayBuffersQueue === null) {
+          // sourceBuffer is ready.
+          // Append the buffer immediately
           sourceBuffer.appendBuffer(ab);
           arrayBuffersQueue = [];
         } else {
           arrayBuffersQueue.push(ab);
         }
       };
+      // arrayBuffersQueue should be sorted.
+      // If not in order, keep in unorderedArrayBuffersQueue
       const popFromUnorderedArrayBuffersQueue = () => {
         while (unorderedArrayBuffersQueue[fetchingBufferIndex]) {
           const ab = unorderedArrayBuffersQueue[fetchingBufferIndex];
           unorderedArrayBuffersQueue[fetchingBufferIndex] = undefined;
           delete unorderedArrayBuffersQueue[fetchingBufferIndex];
-          console.log('pushArrayBuffers' + fetchingBufferIndex);
           pushArrayBuffers(ab);
           fetchingBufferIndex += 1;
         }
       };
+      // Fetch all source
       asset.urls.forEach(async (url, index) => {
         const res = await fetch(url);
         const ab = await res.arrayBuffer();
-        console.log('fetch' + index);
         unorderedArrayBuffersQueue[index] = ab;
         popFromUnorderedArrayBuffersQueue();
       });
       sourceBuffer.addEventListener('updateend', () => {
-        console.log('updateend');
         video.play();
         if (arrayBuffersQueue !== null && arrayBuffersQueue.length >= 1) {
+          // append next buffer.
           const ab = arrayBuffersQueue.shift();
-          console.log('next..');
           sourceBuffer.appendBuffer(ab);
         } else {
+          // sourceBuffer is ready.
           arrayBuffersQueue = null;
-        console.log('wait');
         }
       });
     }
@@ -153,7 +157,6 @@ async function createMediaKeysClearKey(videoContentType, audioContentType) {
 
 async function handleLicenseRequestClearKey(session, message, encryption_key) {
   const request = JSON.parse(new TextDecoder().decode(message));
-  // console.log('request:', request);
   const response = {
     keys: [
       {
@@ -165,7 +168,6 @@ async function handleLicenseRequestClearKey(session, message, encryption_key) {
       },
     ],
   };
-  // console.log('response', response);
   const responseRaw = new TextEncoder().encode(JSON.stringify(response));
 
   session.update(responseRaw).catch((e) => console.error(e));
@@ -189,13 +191,13 @@ function setMediaKeysClearKey(video, videoCodec, audioCodec, encryption_key) {
   video.addEventListener('encrypted', async (event) => {
     try {
       const { initDataType, initData } = event;
-      // console.log(
-      //   'onencrypted:',
-      //   'initDataType=',
-      //   initDataType,
-      //   'initData=',
-      //   initData
-      // );
+      console.log(
+        'encrypted',
+        'initDataType=',
+        initDataType,
+        'initData=',
+        toBase64Url(new Uint8Array(initData))
+      );
       const mediaKeys = video.mediaKeys;
 
       // セッションを作成
@@ -212,6 +214,7 @@ function setMediaKeysClearKey(video, videoCodec, audioCodec, encryption_key) {
     }
   });
 }
+
 // ----------------------------------------------------------------------------
 // EME (com.widevine.alpha)
 // ----------------------------------------------------------------------------
@@ -221,7 +224,7 @@ async function createMediaKeysWidevine(videoContentType, audioContentType) {
     {
       label: 'widevine',
       initDataTypes: ['cenc'],
-      "distinctiveIdentifier": "optional",
+      distinctiveIdentifier: "optional",
       persistentState: "optional",
       sessionTypes: ["temporary"],
       videoCapabilities: [
@@ -243,7 +246,6 @@ async function createMediaKeysWidevine(videoContentType, audioContentType) {
     'com.widevine.alpha',
     config
   );
-  // keySystemAccess.selectedSystemString = 'com.widevine.alpha';  // ??
   const mediaKeys = await keySystemAccess.createMediaKeys();
   return mediaKeys;
 }
@@ -272,7 +274,6 @@ function setMediaKeysWidevine(video, videoCodec, audioCodec, licenseServerInfo) 
         `audio/mp4;codecs="${audioCodec}"`
       );
       await video.setMediaKeys(mediaKeys);
-      console.log('setMediaKeys ok');
 
       const session = mediaKeys.createSession();
       session.addEventListener('message', (event) => {
@@ -286,6 +287,7 @@ function setMediaKeysWidevine(video, videoCodec, audioCodec, licenseServerInfo) 
         console.log('keystatuschange', event);
       });
 
+      // set cenc
       await session.generateRequest(
         'cenc',
         base64ToArrayBuffer(licenseServerInfo.cenc_pssh)
@@ -297,7 +299,13 @@ function setMediaKeysWidevine(video, videoCodec, audioCodec, licenseServerInfo) 
 
   // 暗号化されたメディアを検知したら呼び出される
   video.addEventListener('encrypted', async (event) => {
-    console.log('encrypted');
+    console.log(
+      'encrypted',
+      'initDataType=',
+      initDataType,
+      'initData=',
+      toBase64Url(new Uint8Array(initData))
+    );
     // onencrypted しないことがある
     // コンテナの contentenckeyid が関係するか？ 
   });
