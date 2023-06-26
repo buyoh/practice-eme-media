@@ -2,6 +2,7 @@
 // Util
 // ----------------------------------------------------------------------------
 
+//
 function hexToUint8Array(hexString) {
   const length = hexString.length / 2;
   const uint8Array = new Uint8Array(length);
@@ -12,6 +13,7 @@ function hexToUint8Array(hexString) {
   return uint8Array;
 }
 
+//
 function toBase64Url(u8arr) {
   // btoa を使うと Base64 になってしまい、Base64URL でない
   // 適切に置換する
@@ -21,12 +23,13 @@ function toBase64Url(u8arr) {
     .replace(/=*$/, '');
 }
 
+//
 function base64ToArrayBuffer(base64) {
   const binaryString = atob(base64);
   const len = binaryString.length;
   const bytes = new Uint8Array(len);
   for (var i = 0; i < len; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
+    bytes[i] = binaryString.charCodeAt(i);
   }
   return bytes.buffer;
 }
@@ -50,19 +53,17 @@ function setMediaSourceConcatenated(video, assetURL, mimeCodec) {
     const arrayBuffer = await res.arrayBuffer();
 
     sourceBuffer.addEventListener('updateend', () => {
-      // mediaSource.endOfStream();
       video.play();
-      console.log(mediaSource.readyState); // ended
     });
     sourceBuffer.appendBuffer(arrayBuffer);
   });
 }
 
 /**
- * 
- * @param {*} video 
- * @param {[{urls: Array<String>, mimeCodec: String}]} assets 
- * @returns 
+ *
+ * @param {*} video
+ * @param {[{urls: Array<String>, mimeCodec: String}]} assets
+ * @returns
  */
 function setMediaSource(video, assets) {
   for (const asset of assets) {
@@ -130,10 +131,15 @@ function setMediaSource(video, assets) {
 // EME (org.w3.clearkey)
 // ----------------------------------------------------------------------------
 
+//
 async function createMediaKeysClearKey(videoContentType, audioContentType) {
   const config = [
     {
+      label: 'clearkey',
       initDataTypes: ['cenc'],
+      distinctiveIdentifier: 'optional',
+      persistentState: 'optional',
+      sessionTypes: ['temporary'],
       videoCapabilities: [
         {
           contentType: videoContentType,
@@ -155,7 +161,25 @@ async function createMediaKeysClearKey(videoContentType, audioContentType) {
   return mediaKeys;
 }
 
+//
+function createSessionClearkey(mediaKeys, encryption_key) {
+  const session = mediaKeys.createSession();
+  session.addEventListener('message', (event) => {
+    // License Request
+    const session = event.target;
+    const message = event.message;
+    handleLicenseRequestClearKey(session, message, encryption_key);
+  });
+  session.addEventListener('keystatuseschange', (event) => {
+    console.log('keystatuschange', event);
+  });
+  return session;
+}
+
+//
 async function handleLicenseRequestClearKey(session, message, encryption_key) {
+  // No ClearKey license server
+  // Response encryption key
   const request = JSON.parse(new TextDecoder().decode(message));
   const response = {
     keys: [
@@ -168,18 +192,24 @@ async function handleLicenseRequestClearKey(session, message, encryption_key) {
       },
     ],
   };
+  console.log('handleLicenseRequestClearKey', request, response);
   const responseRaw = new TextEncoder().encode(JSON.stringify(response));
 
   session.update(responseRaw).catch((e) => console.error(e));
 }
 
-function setMediaKeysClearKey(video, videoCodec, audioCodec, encryption_key) {
+//
+function setMediaKeysClearKey(
+  video,
+  videoContentType,
+  audioContentType,
+  encryption_key
+) {
   (async () => {
     try {
-      // MediaKey を作成して video にセットする
       const mediaKeys = await createMediaKeysClearKey(
-        `video/mp4; codecs="${videoCodec}"`,
-        `audio/mp4; codecs="${audioCodec}"`
+        videoContentType,
+        audioContentType
       );
       await video.setMediaKeys(mediaKeys);
     } catch (error) {
@@ -201,13 +231,7 @@ function setMediaKeysClearKey(video, videoCodec, audioCodec, encryption_key) {
       const mediaKeys = video.mediaKeys;
 
       // セッションを作成
-      const session = mediaKeys.createSession();
-      session.addEventListener('message', (event) => {
-        // License Request
-        const session = event.target;
-        const message = event.message;
-        handleLicenseRequestClearKey(session, message, encryption_key);
-      });
+      const session = createSessionClearkey(mediaKeys, encryption_key);
       await session.generateRequest(initDataType, initData);
     } catch (error) {
       console.error('EME setup failed:', error);
@@ -219,14 +243,15 @@ function setMediaKeysClearKey(video, videoCodec, audioCodec, encryption_key) {
 // EME (com.widevine.alpha)
 // ----------------------------------------------------------------------------
 
+//
 async function createMediaKeysWidevine(videoContentType, audioContentType) {
   const config = [
     {
       label: 'widevine',
       initDataTypes: ['cenc'],
-      distinctiveIdentifier: "optional",
-      persistentState: "optional",
-      sessionTypes: ["temporary"],
+      distinctiveIdentifier: 'optional',
+      persistentState: 'optional',
+      sessionTypes: ['temporary'],
       videoCapabilities: [
         {
           contentType: videoContentType,
@@ -236,7 +261,7 @@ async function createMediaKeysWidevine(videoContentType, audioContentType) {
       audioCapabilities: [
         {
           contentType: audioContentType,
-          robustness: '',  // SW_SECURE_CRYPTO
+          robustness: '', // SW_SECURE_CRYPTO
         },
       ],
     },
@@ -250,7 +275,30 @@ async function createMediaKeysWidevine(videoContentType, audioContentType) {
   return mediaKeys;
 }
 
-async function handleLicenseRequestWidevine(session, message, licenseServerInfo) {
+//
+function createSessionWidevine(mediaKeys, licenseServerInfo) {
+  const session = mediaKeys.createSession();
+
+  session.addEventListener('message', (event) => {
+    console.log('message', event, 'data', event.data);
+    // License Request
+    const session = event.target;
+    const message = event.message;
+    handleLicenseRequestWidevine(session, message, licenseServerInfo);
+  });
+  session.addEventListener('keystatuseschange', (event) => {
+    console.log('keystatuschange', event);
+  });
+  return session;
+}
+
+//
+async function handleLicenseRequestWidevine(
+  session,
+  message,
+  licenseServerInfo
+) {
+  // Request to license server
   const headers = new Headers();
   for (const key in licenseServerInfo.httpRequestHeaders) {
     headers.append(key, licenseServerInfo.httpRequestHeaders[key]);
@@ -265,29 +313,24 @@ async function handleLicenseRequestWidevine(session, message, licenseServerInfo)
   session.update(buffer).catch((e) => console.error(e));
 }
 
-function setMediaKeysWidevine(video, videoCodec, audioCodec, licenseServerInfo) {
+//
+function setMediaKeysWidevine(
+  video,
+  videoContentType,
+  audioContentType,
+  licenseServerInfo
+) {
   (async () => {
     try {
-      // MediaKey を作成して video にセットする
       const mediaKeys = await createMediaKeysWidevine(
-        `video/mp4;codecs="${videoCodec}"`,
-        `audio/mp4;codecs="${audioCodec}"`
+        videoContentType,
+        audioContentType
       );
       await video.setMediaKeys(mediaKeys);
 
-      const session = mediaKeys.createSession();
-      session.addEventListener('message', (event) => {
-        console.log('message', event, 'data', event.data);
-        // License Request
-        const session = event.target;
-        const message = event.message;
-        handleLicenseRequestWidevine(session, message, licenseServerInfo);
-      });
-      session.addEventListener('keystatuseschange', (event) => {
-        console.log('keystatuschange', event);
-      });
-
-      // set cenc
+      // encrypted event を待たず session を開始する
+      const session = createSessionWidevine(mediaKeys, licenseServerInfo);
+      // set init data as cenc
       await session.generateRequest(
         'cenc',
         base64ToArrayBuffer(licenseServerInfo.cenc_pssh)
@@ -297,8 +340,11 @@ function setMediaKeysWidevine(video, videoCodec, audioCodec, licenseServerInfo) 
     }
   })();
 
-  // 暗号化されたメディアを検知したら呼び出される
+  // 暗号化されたメディアを検知したら呼び出される。
+  // 呼び出されないこともある。
+  // コンテナの contentenckeyid が関係するかもしれない。
   video.addEventListener('encrypted', async (event) => {
+    const { initDataType, initData } = event;
     console.log(
       'encrypted',
       'initDataType=',
@@ -306,7 +352,5 @@ function setMediaKeysWidevine(video, videoCodec, audioCodec, licenseServerInfo) 
       'initData=',
       toBase64Url(new Uint8Array(initData))
     );
-    // onencrypted しないことがある
-    // コンテナの contentenckeyid が関係するか？ 
   });
 }

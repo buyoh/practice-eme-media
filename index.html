@@ -15,44 +15,42 @@
       const videoCodec = 'avc1.42C01E';
       const audioCodec = 'mp4a.40.2';
       const mime = `video/mp4; codecs="${videoCodec}, ${audioCodec}"`;
+      const videoContentType = `video/mp4;codecs="${videoCodec}"`;
+      const audioContentType = `audio/mp4;codecs="${audioCodec}"`;
       const encryption_kid = hexToUint8Array('a53fcebc83532682766c7d0e012fe92f');
       const encryption_key = hexToUint8Array('9c61173d2db8939009be4bd689533ade');
 
-      setMediaKeysClearKey(video, videoCodec, audioCodec, encryption_key);
+      setMediaKeysClearKey(video, videoContentType, audioContentType, encryption_key);
       setMediaSourceConcatenated(video, assetURL, mime);
     }
 
     function startClearKey2() {
       const video = document.querySelector('video');
 
-      const encryption_kid = hexToUint8Array('nrQFDeRLSAKTLifXUIPiZg');
-      const encryption_key = hexToUint8Array('FmY0xnWCPCNaSpRG-tUuTQ');
-
       const assets = [
         {
           urls:
-            [
-              'https://media.axprod.net/TestVectors/v7-MultiDRM-SingleKey/2/init.mp4'
-            ]
-            .concat(
-            Array.from({ length: 9 }, (_, idx) =>
-              `https://media.axprod.net/TestVectors/v7-MultiDRM-SingleKey/2/${('00000'+(idx+1)).slice(-4)}.m4s`)),
+            ['https://media.axprod.net/TestVectors/v7-MultiDRM-SingleKey/2/init.mp4']
+              .concat(
+                Array.from({ length: 9 }, (_, idx) =>
+                  `https://media.axprod.net/TestVectors/v7-MultiDRM-SingleKey/2/${('00000' + (idx + 1)).slice(-4)}.m4s`)),
           mimeCodec: 'video/mp4; codecs="avc1.64001f"'
         },
         {
           urls:
-            [
-              'https://media.axprod.net/TestVectors/v7-MultiDRM-SingleKey/15/init.mp4'
-            ]
-            .concat(
-            Array.from({ length: 9 }, (_, idx) =>
-              `https://media.axprod.net/TestVectors/v7-MultiDRM-SingleKey/15/${('00000'+(idx+1)).slice(-4)}.m4s`)),
+            ['https://media.axprod.net/TestVectors/v7-MultiDRM-SingleKey/15/init.mp4']
+              .concat(
+                Array.from({ length: 9 }, (_, idx) =>
+                  `https://media.axprod.net/TestVectors/v7-MultiDRM-SingleKey/15/${('00000' + (idx + 1)).slice(-4)}.m4s`)),
           mimeCodec: 'audio/mp4; codecs="mp4a.40.29"'
         },
       ];
-      const videoCodec = 'avc1.64001f';
-      const audioCodec = 'mp4a.40.29';
-      setMediaKeysClearKey(video, videoCodec, audioCodec, encryption_key);
+      const encryption_kid = hexToUint8Array('nrQFDeRLSAKTLifXUIPiZg');
+      const encryption_key = hexToUint8Array('FmY0xnWCPCNaSpRG-tUuTQ');
+      const videoContentType = assets[0].mimeCodec;
+      const audioContentType = assets[1].mimeCodec;
+
+      setMediaKeysClearKey(video, videoContentType, audioContentType, encryption_key);
       setMediaSource(video, assets);
     }
 
@@ -82,39 +80,34 @@
 
       // https://reference.dashif.org/dash.js/latest/samples/drm/widevine.html
       // https://media.axprod.net/TestVectors/v7-MultiDRM-SingleKey/Manifest_1080p.mpd
-      const licenseServerInfo = {
-          "serverURL": "https://drm-widevine-licensing.axtest.net/AcquireLicense",
-          "httpRequestHeaders": {
-              "X-AxDRM-Message": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ2ZXJzaW9uIjoxLCJjb21fa2V5X2lkIjoiYjMzNjRlYjUtNTFmNi00YWUzLThjOTgtMzNjZWQ1ZTMxYzc4IiwibWVzc2FnZSI6eyJ0eXBlIjoiZW50aXRsZW1lbnRfbWVzc2FnZSIsImZpcnN0X3BsYXlfZXhwaXJhdGlvbiI6NjAsInBsYXlyZWFkeSI6eyJyZWFsX3RpbWVfZXhwaXJhdGlvbiI6dHJ1ZX0sImtleXMiOlt7ImlkIjoiOWViNDA1MGQtZTQ0Yi00ODAyLTkzMmUtMjdkNzUwODNlMjY2IiwiZW5jcnlwdGVkX2tleSI6ImxLM09qSExZVzI0Y3Iya3RSNzRmbnc9PSJ9XX19.FAbIiPxX8BHi9RwfzD7Yn-wugU19ghrkBFKsaCPrZmU"
-          },
-          "cenc_pssh": "AAAANHBzc2gAAAAA7e+LqXnWSs6jyCfc1R0h7QAAABQIARIQnrQFDeRLSAKTLifXUIPiZg==",
-      };
-
       const assets = [
         {
           urls:
-            [
-              'https://media.axprod.net/TestVectors/v7-MultiDRM-SingleKey/2/init.mp4'
-            ]
-            .concat(
-            Array.from({ length: 5 }, (_, idx) =>
-              `https://media.axprod.net/TestVectors/v7-MultiDRM-SingleKey/2/000${idx+1}.m4s`)),
+            ['https://media.axprod.net/TestVectors/v7-MultiDRM-SingleKey/2/init.mp4']
+              .concat(
+                Array.from({ length: 5 }, (_, idx) =>
+                  `https://media.axprod.net/TestVectors/v7-MultiDRM-SingleKey/2/000${idx + 1}.m4s`)),
           mimeCodec: 'video/mp4; codecs="avc1.64001f"'
         },
         {
           urls:
-            [
-              'https://media.axprod.net/TestVectors/v7-MultiDRM-SingleKey/15/init.mp4'
-            ]
-            .concat(
-            Array.from({ length: 5 }, (_, idx) =>
-              `https://media.axprod.net/TestVectors/v7-MultiDRM-SingleKey/15/000${idx+1}.m4s`)),
+            ['https://media.axprod.net/TestVectors/v7-MultiDRM-SingleKey/15/init.mp4']
+              .concat(
+                Array.from({ length: 5 }, (_, idx) =>
+                  `https://media.axprod.net/TestVectors/v7-MultiDRM-SingleKey/15/000${idx + 1}.m4s`)),
           mimeCodec: 'audio/mp4; codecs="mp4a.40.29"'
         },
       ];
-      const videoCodec = 'avc1.64001f';
-      const audioCodec = 'mp4a.40.29';
-      setMediaKeysWidevine(video, videoCodec, audioCodec, licenseServerInfo);
+      const licenseServerInfo = {
+        "serverURL": "https://drm-widevine-licensing.axtest.net/AcquireLicense",
+        "httpRequestHeaders": {
+          "X-AxDRM-Message": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ2ZXJzaW9uIjoxLCJjb21fa2V5X2lkIjoiYjMzNjRlYjUtNTFmNi00YWUzLThjOTgtMzNjZWQ1ZTMxYzc4IiwibWVzc2FnZSI6eyJ0eXBlIjoiZW50aXRsZW1lbnRfbWVzc2FnZSIsImZpcnN0X3BsYXlfZXhwaXJhdGlvbiI6NjAsInBsYXlyZWFkeSI6eyJyZWFsX3RpbWVfZXhwaXJhdGlvbiI6dHJ1ZX0sImtleXMiOlt7ImlkIjoiOWViNDA1MGQtZTQ0Yi00ODAyLTkzMmUtMjdkNzUwODNlMjY2IiwiZW5jcnlwdGVkX2tleSI6ImxLM09qSExZVzI0Y3Iya3RSNzRmbnc9PSJ9XX19.FAbIiPxX8BHi9RwfzD7Yn-wugU19ghrkBFKsaCPrZmU"
+        },
+        "cenc_pssh": "AAAANHBzc2gAAAAA7e+LqXnWSs6jyCfc1R0h7QAAABQIARIQnrQFDeRLSAKTLifXUIPiZg==",
+      };
+      const videoContentType = assets[0].mimeCodec;
+      const audioContentType = assets[1].mimeCodec;
+      setMediaKeysWidevine(video, videoContentType, audioContentType, licenseServerInfo);
       setMediaSource(video, assets);
     }
 
