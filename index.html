@@ -17,16 +17,20 @@
       const mime = `video/mp4; codecs="${videoCodec}, ${audioCodec}"`;
       const videoContentType = `video/mp4;codecs="${videoCodec}"`;
       const audioContentType = `audio/mp4;codecs="${audioCodec}"`;
-      const encryption_kid = hexToUint8Array('a53fcebc83532682766c7d0e012fe92f');
-      const encryption_key = hexToUint8Array('9c61173d2db8939009be4bd689533ade');
+      const encryption = {
+        kid: toBase64Url(hexToUint8Array('a53fcebc83532682766c7d0e012fe92f')),
+        key: toBase64Url(hexToUint8Array('9c61173d2db8939009be4bd689533ade')),
+        passive: true,
+      };
 
-      setMediaKeysClearKey(video, videoContentType, audioContentType, encryption_key);
+      setMediaKeysClearKey(video, videoContentType, audioContentType, encryption);
       setMediaSourceConcatenated(video, assetURL, mime);
     }
 
     function startClearKey2() {
       const video = document.querySelector('video');
 
+      // https://media.axprod.net/TestVectors/v7-MultiDRM-SingleKey/Manifest_1080p_Clearkey.mpd
       const assets = [
         {
           urls:
@@ -45,12 +49,17 @@
           mimeCodec: 'audio/mp4; codecs="mp4a.40.29"'
         },
       ];
-      const encryption_kid = hexToUint8Array('nrQFDeRLSAKTLifXUIPiZg');
-      const encryption_key = hexToUint8Array('FmY0xnWCPCNaSpRG-tUuTQ');
+      const encryption = {
+        kid: 'nrQFDeRLSAKTLifXUIPiZg',
+        key: 'FmY0xnWCPCNaSpRG-tUuTQ',
+        passive: false,
+        initDataType: 'keyids',
+        initData: new TextEncoder().encode('{"kids":["nrQFDeRLSAKTLifXUIPiZg"]}'),
+      };
       const videoContentType = assets[0].mimeCodec;
       const audioContentType = assets[1].mimeCodec;
 
-      setMediaKeysClearKey(video, videoContentType, audioContentType, encryption_key);
+      setMediaKeysClearKey(video, videoContentType, audioContentType, encryption);
       setMediaSource(video, assets);
     }
 
@@ -98,12 +107,14 @@
           mimeCodec: 'audio/mp4; codecs="mp4a.40.29"'
         },
       ];
+      const cenc_pssh = "AAAANHBzc2gAAAAA7e+LqXnWSs6jyCfc1R0h7QAAABQIARIQnrQFDeRLSAKTLifXUIPiZg==";
       const licenseServerInfo = {
         "serverURL": "https://drm-widevine-licensing.axtest.net/AcquireLicense",
         "httpRequestHeaders": {
           "X-AxDRM-Message": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ2ZXJzaW9uIjoxLCJjb21fa2V5X2lkIjoiYjMzNjRlYjUtNTFmNi00YWUzLThjOTgtMzNjZWQ1ZTMxYzc4IiwibWVzc2FnZSI6eyJ0eXBlIjoiZW50aXRsZW1lbnRfbWVzc2FnZSIsImZpcnN0X3BsYXlfZXhwaXJhdGlvbiI6NjAsInBsYXlyZWFkeSI6eyJyZWFsX3RpbWVfZXhwaXJhdGlvbiI6dHJ1ZX0sImtleXMiOlt7ImlkIjoiOWViNDA1MGQtZTQ0Yi00ODAyLTkzMmUtMjdkNzUwODNlMjY2IiwiZW5jcnlwdGVkX2tleSI6ImxLM09qSExZVzI0Y3Iya3RSNzRmbnc9PSJ9XX19.FAbIiPxX8BHi9RwfzD7Yn-wugU19ghrkBFKsaCPrZmU"
         },
-        "cenc_pssh": "AAAANHBzc2gAAAAA7e+LqXnWSs6jyCfc1R0h7QAAABQIARIQnrQFDeRLSAKTLifXUIPiZg==",
+        initDataType: 'cenc',
+        initData: base64ToArrayBuffer(cenc_pssh),
       };
       const videoContentType = assets[0].mimeCodec;
       const audioContentType = assets[1].mimeCodec;

@@ -24,6 +24,11 @@ function toBase64Url(u8arr) {
 }
 
 //
+function base64UrlToArrayBuffer(base64) {
+  return base64ToArrayBuffer(base64.replace(/-/g, '+').replace(/_/g, '/'));
+}
+
+//
 function base64ToArrayBuffer(base64) {
   const binaryString = atob(base64);
   const len = binaryString.length;
@@ -188,7 +193,7 @@ async function handleLicenseRequestClearKey(session, message, encryption_key) {
         alg: 'A128KW',
         use: 'enc',
         kid: request.kids[0], // same as encryption_kid
-        k: toBase64Url(encryption_key),
+        k: encryption_key,
       },
     ],
   };
@@ -203,7 +208,7 @@ function setMediaKeysClearKey(
   video,
   videoContentType,
   audioContentType,
-  encryption_key
+  encryption
 ) {
   (async () => {
     try {
@@ -212,6 +217,15 @@ function setMediaKeysClearKey(
         audioContentType
       );
       await video.setMediaKeys(mediaKeys);
+
+      if (!encryption.passive) {
+        // encrypted event を待たず session を開始する
+        const session = createSessionClearkey(mediaKeys, encryption.key);
+        await session.generateRequest(
+          encryption.initDataType,
+          encryption.initData
+        );
+      }
     } catch (error) {
       console.error('EME setup failed:', error);
     }
@@ -228,11 +242,12 @@ function setMediaKeysClearKey(
         'initData=',
         toBase64Url(new Uint8Array(initData))
       );
-      const mediaKeys = video.mediaKeys;
-
-      // セッションを作成
-      const session = createSessionClearkey(mediaKeys, encryption_key);
-      await session.generateRequest(initDataType, initData);
+      if (encryption.passive) {
+        // 暗号化されたメディアを検知したら session を作成
+        const mediaKeys = video.mediaKeys;
+        const session = createSessionClearkey(mediaKeys, encryption.key);
+        await session.generateRequest(initDataType, initData);
+      }
     } catch (error) {
       console.error('EME setup failed:', error);
     }
@@ -332,8 +347,8 @@ function setMediaKeysWidevine(
       const session = createSessionWidevine(mediaKeys, licenseServerInfo);
       // set init data as cenc
       await session.generateRequest(
-        'cenc',
-        base64ToArrayBuffer(licenseServerInfo.cenc_pssh)
+        licenseServerInfo.initDataType,
+        licenseServerInfo.initData
       );
     } catch (error) {
       console.error('EME setup failed:', error);
