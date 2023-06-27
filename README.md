@@ -7,7 +7,11 @@ A sample implementation of Encrypted Media Extensions(EME)
 
 Contents are also stored in `docs` for github pages. (`docs` is not document!)
 
-## how to start
+## how to start (github pages)
+
+https://buyoh.github.io/practice-eme-media/
+
+## how to start (local)
 
 ```sh
 bash ./start-http.sh
