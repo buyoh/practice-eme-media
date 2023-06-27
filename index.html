@@ -7,9 +7,61 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Document</title>
   <script src="index.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      background-color: #ddd;
+      padding: 0;
+    }
+
+    #bodywrapper {
+      width: 800px;
+      background-color: #fefefe;
+      margin: 0 auto;
+      padding: 8px 8px 80px;
+    }
+
+    #videoholder {
+      width: 640px;
+      height: 480px;
+      background-color: #888;
+      display: flex;
+    }
+
+    #videoholder video {
+      max-width: 640px;
+      max-height: 480px;
+      object-fit: contain;
+    }
+
+    .buttonlist {
+      width: 624px;
+      padding: 8px;
+      display: flex;
+      justify-content: space-evenly;
+    }
+
+    button.buttonlist-item {
+      flex: 0 1 1;
+      padding: 0.5em;
+
+    }
+  </style>
   <script>
+    function initVideoElement() {
+      const vh = document.getElementById('videoholder');
+      const oldVideo = vh.querySelector('video');
+      if (oldVideo) {
+        oldVideo.remove();
+      }
+      const newVideo = document.createElement('video');
+      newVideo.controls = true;
+      vh.appendChild(newVideo);
+      return newVideo;
+    }
+
     function startClearKey() {
-      const video = document.querySelector('video');
+      const video = initVideoElement();
 
       const assetURL = 'output_frag_encrypted.mp4';
       const videoCodec = 'avc1.42C01E';
@@ -28,7 +80,7 @@
     }
 
     function startClearKey2() {
-      const video = document.querySelector('video');
+      const video = initVideoElement();
 
       // https://media.axprod.net/TestVectors/v7-MultiDRM-SingleKey/Manifest_1080p_Clearkey.mpd
       const assets = [
@@ -64,7 +116,8 @@
     }
 
     function startSimple() {
-      const video = document.querySelector('video');
+      const video = initVideoElement();
+
       // https://dash.akamaized.net/akamai/bbb_30fps/bbb_30fps.mpd
       const assets = [
         {
@@ -85,7 +138,7 @@
     }
 
     function startWidevine() {
-      const video = document.querySelector('video');
+      const video = initVideoElement();
 
       // https://reference.dashif.org/dash.js/latest/samples/drm/widevine.html
       // https://media.axprod.net/TestVectors/v7-MultiDRM-SingleKey/Manifest_1080p.mpd
@@ -127,15 +180,23 @@
 
 <body>
 
-  <div>
-    <video controls></video>
-    <button onclick="startClearKey()">START org.w3.clearkey</button>
-    <button onclick="startClearKey2()">START org.w3.clearkey 2</button>
-    <button onclick="startSimple()">START simple</button>
-    <button onclick="startWidevine()">START widevine</button>
-  </div>
+  <div id="bodywrapper">
+    <h1>practice-eme-media</h1>
+    <hr>
+    <div>
+      <div id="videoholder">
+      </div>
 
-  <p>(CC) Blender Foundation | mango.blender.org</p>
+      <div class="buttonlist">
+        <button class="buttonlist-item" onclick="startClearKey()">START org.w3.clearkey</button>
+        <button class="buttonlist-item" onclick="startClearKey2()">START org.w3.clearkey 2</button>
+        <button class="buttonlist-item" onclick="startSimple()">START simple</button>
+        <button class="buttonlist-item" onclick="startWidevine()">START widevine</button>
+      </div>
+    </div>
+
+    <p>(CC) Blender Foundation | mango.blender.org</p>
+  </div>
 </body>
 
 </html>
